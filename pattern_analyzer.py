@@ -52,22 +52,30 @@ class PatternAnalyzer:
     def _find_support_resistance(self, df):
         """Identify support and resistance levels"""
         prices = df['price'].values
-        
+
         # Find peaks (resistance) and valleys (support)
         peaks, _ = find_peaks(prices, distance=len(prices)//10)
         valleys, _ = find_peaks(-prices, distance=len(prices)//10)
-        
+
         resistance_levels = prices[peaks] if len(peaks) > 0 else []
         support_levels = prices[valleys] if len(valleys) > 0 else []
-        
+
+        # Nearest resistance = lowest level ABOVE the current price,
+        # nearest support = highest level BELOW the current price.
+        current = float(prices[-1])
+        above = [float(l) for l in resistance_levels if l > current]
+        below = [float(l) for l in support_levels if l < current]
+        nearest_resistance = min(above) if above else None
+        nearest_support = max(below) if below else None
+
         return {
-            'resistance_levels': [float(level) for level in resistance_levels[-3:]],  # Last 3 resistance levels
-            'support_levels': [float(level) for level in support_levels[-3:]],  # Last 3 support levels
-            'current_price': float(prices[-1]),
-            'nearest_resistance': float(min(resistance_levels)) if len(resistance_levels) > 0 else None,
-            'nearest_support': float(max(support_levels)) if len(support_levels) > 0 else None
+            'resistance_levels': [float(level) for level in resistance_levels[-3:]],
+            'support_levels': [float(level) for level in support_levels[-3:]],
+            'current_price': current,
+            'nearest_resistance': nearest_resistance,
+            'nearest_support': nearest_support
         }
-    
+        
     def _analyze_trend(self, df):
         """Analyze price trends using various methods"""
         prices = df['price'].values
