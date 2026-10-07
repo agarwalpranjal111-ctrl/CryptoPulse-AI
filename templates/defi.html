@@ -1,0 +1,605 @@
+{% extends "base.html" %}
+
+{% block title %}DeFi Monitoring - Crypto Analytics{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="fas fa-coins me-2"></i>DeFi Protocol Monitoring</h1>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary btn-sm" onclick="refreshDefiData()">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                </button>
+                <span class="badge bg-success" id="lastUpdated">Live</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DeFi Overview Cards -->
+<div class="row mb-4" id="defiOverview">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-layer-group fa-2x text-primary mb-2"></i>
+                <h6 class="card-title">Total Protocols</h6>
+                <h4 class="text-primary" id="totalProtocols">Loading...</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-dollar-sign fa-2x text-success mb-2"></i>
+                <h6 class="card-title">Total Value</h6>
+                <h4 class="text-success" id="totalValue">Loading...</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
+                <h6 class="card-title">24h Change</h6>
+                <h4 class="text-info" id="totalChange">Loading...</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-fire fa-2x text-warning mb-2"></i>
+                <h6 class="card-title">Top Gainer</h6>
+                <h4 class="text-warning" id="topGainer">Loading...</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DeFi Market Cap Chart -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">DeFi Market Cap Distribution</h5>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="chartType" id="pieChart" autocomplete="off" checked>
+                        <label class="btn btn-outline-primary" for="pieChart">Pie</label>
+                        
+                        <input type="radio" class="btn-check" name="chartType" id="barChart" autocomplete="off">
+                        <label class="btn btn-outline-primary" for="barChart">Bar</label>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="defiChart" style="height: 400px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DeFi Protocols Table -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Top DeFi Protocols</h5>
+                    <div class="input-group" style="width: 250px;">
+                        <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Search protocols...">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="filterProtocols()">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Protocol</th>
+                                <th>Price</th>
+                                <th>24h Change</th>
+                                <th>7d Change</th>
+                                <th>Market Cap</th>
+                                <th>Volume</th>
+                                <th>Chart</th>
+                            </tr>
+                        </thead>
+                        <tbody id="defiTable">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Protocol Categories -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">DeFi Categories Performance</h6>
+            </div>
+            <div class="card-body">
+                <div id="categoriesPerformance">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Risk Metrics</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="riskChart" style="height: 250px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Movers -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0 text-success">Top Gainers (24h)</h6>
+            </div>
+            <div class="card-body">
+                <div id="topGainers">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0 text-danger">Top Losers (24h)</h6>
+            </div>
+            <div class="card-body">
+                <div id="topLosers">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading State -->
+<div id="loadingOverlay" class="d-none">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let defiChart;
+let riskChart;
+let defiData = [];
+let refreshInterval;
+
+// Initialize DeFi monitoring
+document.addEventListener('DOMContentLoaded', function() {
+    loadDefiData();
+    startAutoRefresh();
+    
+    // Add chart type change listeners
+    document.querySelectorAll('input[name="chartType"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked && defiData.length > 0) {
+                updateDefiChart(this.id === 'pieChart');
+            }
+        });
+    });
+    
+    // Add search functionality
+    document.getElementById('searchInput').addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') {
+            filterProtocols();
+        }
+    });
+});
+
+function loadDefiData() {
+    showLoading(true);
+    
+    fetch('/api/defi-protocols')
+        .then(response => response.json())
+        .then(data => {
+            showLoading(false);
+            
+            if (data.error) {
+                showError('Failed to load DeFi data: ' + data.error);
+                return;
+            }
+            
+            defiData = data.protocols;
+            updateDefiOverview();
+            updateDefiTable();
+            updateDefiChart(true); // Start with pie chart
+            updateCategoriesPerformance();
+            updateRiskChart();
+            updateTopMovers();
+            updateLastUpdated();
+        })
+        .catch(error => {
+            showLoading(false);
+            console.error('Error loading DeFi data:', error);
+            showError('Failed to load DeFi data');
+        });
+}
+
+function updateDefiOverview() {
+    if (defiData.length === 0) return;
+    
+    const totalValue = defiData.reduce((sum, protocol) => sum + protocol.market_cap, 0);
+    const totalChange = defiData.reduce((sum, protocol) => sum + protocol.price_change_percentage_24h, 0) / defiData.length;
+    
+    // Find top gainer
+    const topGainerData = defiData.reduce((max, protocol) => 
+        protocol.price_change_percentage_24h > max.price_change_percentage_24h ? protocol : max
+    );
+    
+    document.getElementById('totalProtocols').textContent = defiData.length;
+    document.getElementById('totalValue').textContent = formatCurrency(totalValue);
+    document.getElementById('totalChange').textContent = `${totalChange >= 0 ? '+' : ''}${totalChange.toFixed(2)}%`;
+    document.getElementById('totalChange').className = `text-${totalChange >= 0 ? 'success' : 'danger'}`;
+    document.getElementById('topGainer').textContent = `${topGainerData.symbol.toUpperCase()} +${topGainerData.price_change_percentage_24h.toFixed(2)}%`;
+}
+
+function updateDefiTable(protocols) {
+    if (!protocols || !Array.isArray(protocols) || protocols.length === 0) {
+        console.warn("DeFi data unavailable yet, waiting for updates...");
+        const tableBody = document.getElementById('defiTable');
+        if (tableBody) {
+            tableBody.innerHTML = `<tr><td colspan="4" class="text-center">Loading DeFi data...</td></tr>`;
+        }
+        return;
+    }
+
+    const tableBody = document.getElementById('defiTable');
+    if (!tableBody) return;
+
+    tableBody.innerHTML = '';
+    protocols.forEach(protocol => {
+        if (!protocol) return;
+
+        const name = protocol.name || "Unknown";
+        const tvl = protocol.tvl ? formatCurrency(protocol.tvl) : "N/A";
+        const price = protocol.token && typeof protocol.token.price === "number"
+            ? `$${protocol.token.price.toFixed(protocol.token.price < 1 ? 6 : 2)}`
+            : "N/A";
+        const chain = protocol.chain || "Unknown";
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${name}</td>
+            <td>${tvl}</td>
+            <td>${price}</td>
+            <td>${chain}</td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+function updateDefiChart(isPieChart) {
+    const ctx = document.getElementById('defiChart').getContext('2d');
+    
+    if (defiChart) {
+        defiChart.destroy();
+    }
+    
+    const top10 = defiData.slice(0, 10);
+    const labels = top10.map(p => p.symbol.toUpperCase());
+    const data = top10.map(p => p.market_cap);
+    
+    const colors = [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+        '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+    ];
+    
+    if (isPieChart) {
+        defiChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${formatCurrency(value)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        defiChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Market Cap',
+                    data: data,
+                    backgroundColor: colors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+function updateCategoriesPerformance() {
+    // Simulate DeFi categories
+    const categories = {
+        'DEX': { count: 0, avgChange: 0, color: 'primary' },
+        'Lending': { count: 0, avgChange: 0, color: 'success' },
+        'Yield Farming': { count: 0, avgChange: 0, color: 'info' },
+        'Insurance': { count: 0, avgChange: 0, color: 'warning' },
+        'Derivatives': { count: 0, avgChange: 0, color: 'danger' }
+    };
+    
+    // Randomly assign protocols to categories for demo
+    defiData.forEach(protocol => {
+        const categoryKeys = Object.keys(categories);
+        const randomCategory = categoryKeys[Math.floor(Math.random() * categoryKeys.length)];
+        categories[randomCategory].count++;
+        categories[randomCategory].avgChange += protocol.price_change_percentage_24h;
+    });
+    
+    // Calculate averages
+    Object.keys(categories).forEach(key => {
+        if (categories[key].count > 0) {
+            categories[key].avgChange /= categories[key].count;
+        }
+    });
+    
+    const container = document.getElementById('categoriesPerformance');
+    let html = '';
+    
+    Object.entries(categories).forEach(([category, data]) => {
+        html += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <span class="badge bg-${data.color} me-2">${category}</span>
+                    <small class="text-muted">${data.count} protocols</small>
+                </div>
+                <span class="badge ${data.avgChange >= 0 ? 'bg-success' : 'bg-danger'}">
+                    ${data.avgChange >= 0 ? '+' : ''}${data.avgChange.toFixed(2)}%
+                </span>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function updateRiskChart() {
+    const ctx = document.getElementById('riskChart').getContext('2d');
+    
+    if (riskChart) {
+        riskChart.destroy();
+    }
+    
+    // Calculate risk metrics based on volatility
+    const riskData = defiData.slice(0, 10).map(protocol => {
+        const volatility = Math.abs(protocol.price_change_percentage_24h);
+        let risk = 'Low';
+        if (volatility > 15) risk = 'High';
+        else if (volatility > 5) risk = 'Medium';
+        return { name: protocol.symbol.toUpperCase(), risk, volatility };
+    });
+    
+    const riskCounts = { Low: 0, Medium: 0, High: 0 };
+    riskData.forEach(item => riskCounts[item.risk]++);
+    
+    riskChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+            datasets: [{
+                data: [riskCounts.Low, riskCounts.Medium, riskCounts.High],
+                backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function updateTopMovers() {
+    const sortedByGains = [...defiData].sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h);
+    const topGainers = sortedByGains.slice(0, 5);
+    const topLosers = sortedByGains.slice(-5).reverse();
+    
+    // Update top gainers
+    const gainersContainer = document.getElementById('topGainers');
+    gainersContainer.innerHTML = '';
+    topGainers.forEach(protocol => {
+        const item = document.createElement('div');
+        item.className = 'd-flex justify-content-between align-items-center mb-2 p-2 border rounded';
+        item.innerHTML = `
+            <div class="d-flex align-items-center">
+                <img src="${protocol.image}" width="20" height="20" class="me-2">
+                <div>
+                    <div class="fw-bold">${protocol.symbol.toUpperCase()}</div>
+                    <small class="text-muted">$${protocol.current_price.toFixed(4)}</small>
+                </div>
+            </div>
+            <span class="badge bg-success">+${protocol.price_change_percentage_24h.toFixed(2)}%</span>
+        `;
+        gainersContainer.appendChild(item);
+    });
+    
+    // Update top losers
+    const losersContainer = document.getElementById('topLosers');
+    losersContainer.innerHTML = '';
+    topLosers.forEach(protocol => {
+        const item = document.createElement('div');
+        item.className = 'd-flex justify-content-between align-items-center mb-2 p-2 border rounded';
+        item.innerHTML = `
+            <div class="d-flex align-items-center">
+                <img src="${protocol.image}" width="20" height="20" class="me-2">
+                <div>
+                    <div class="fw-bold">${protocol.symbol.toUpperCase()}</div>
+                    <small class="text-muted">$${protocol.current_price.toFixed(4)}</small>
+                </div>
+            </div>
+            <span class="badge bg-danger">${protocol.price_change_percentage_24h.toFixed(2)}%</span>
+        `;
+        losersContainer.appendChild(item);
+    });
+}
+
+function drawSparklines() {
+    document.querySelectorAll('.sparkline').forEach(canvas => {
+        const data = JSON.parse(canvas.getAttribute('data-sparkline'));
+        const ctx = canvas.getContext('2d');
+        
+        const width = canvas.width;
+        const height = canvas.height;
+        const padding = 2;
+        
+        const min = Math.min(...data);
+        const max = Math.max(...data);
+        const range = max - min;
+        
+        if (range === 0) return; // Avoid division by zero
+        
+        ctx.clearRect(0, 0, width, height);
+        ctx.strokeStyle = data[data.length - 1] > data[0] ? '#28a745' : '#dc3545';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        
+        data.forEach((point, index) => {
+            const x = (index / (data.length - 1)) * (width - padding * 2) + padding;
+            const y = height - padding - ((point - min) / range) * (height - padding * 2);
+            
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        
+        ctx.stroke();
+    });
+}
+
+function filterProtocols() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const tableRows = document.querySelectorAll('#defiTable tr');
+    
+    tableRows.forEach(row => {
+        const protocolName = row.cells[1].textContent.toLowerCase();
+        if (protocolName.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function refreshDefiData() {
+    loadDefiData();
+}
+
+function startAutoRefresh() {
+    refreshInterval = setInterval(() => {
+        loadDefiData();
+    }, 300000); // Refresh every 5 minutes
+}
+
+function updateLastUpdated() {
+    document.getElementById('lastUpdated').textContent = 
+        'Updated ' + new Date().toLocaleTimeString();
+}
+
+function showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (show) {
+        overlay.classList.remove('d-none');
+    } else {
+        overlay.classList.add('d-none');
+    }
+}
+
+function showError(message) {
+    console.error(message);
+    alert('Error: ' + message);
+}
+
+function formatCurrency(value) {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        notation: 'compact',
+        maximumFractionDigits: 2
+    }).format(value);
+}
+
+function formatNumber(value) {
+    return new Intl.NumberFormat('en-US', {
+        notation: 'compact',
+        maximumFractionDigits: 1
+    }).format(value);
+}
+</script>
+{% endblock %}

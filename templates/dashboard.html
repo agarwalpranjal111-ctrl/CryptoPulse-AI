@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Crypto Analytics{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="fas fa-tachometer-alt me-2"></i>Market Overview</h1>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary btn-sm" onclick="refreshData()">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                </button>
+                <span class="badge bg-success connection-status" id="lastUpdated">Live</span>
+                <span class="badge bg-info ms-1" id="websocketStatus">
+                    <i class="fas fa-wifi me-1"></i>Connecting...
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Market Stats -->
+<div class="row mb-4" id="marketStats">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-dollar-sign fa-2x text-primary mb-2"></i>
+                <h6 class="card-title">Total Market Cap</h6>
+                <h4 class="text-primary" id="totalMarketCap">Loading...</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+                <h6 class="card-title">24h Volume</h6>
+                <h4 class="text-success" id="totalVolume">Loading...</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fab fa-bitcoin fa-2x text-warning mb-2"></i>
+                <h6 class="card-title">BTC Dominance</h6>
+                <h4 class="text-warning" id="btcDominance">Loading...</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-coins fa-2x text-info mb-2"></i>
+                <h6 class="card-title">Active Cryptos</h6>
+                <h4 class="text-info" id="activeCryptos">Loading...</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Chart -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Price Chart</h5>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="timeframe" id="tf1h" autocomplete="off" checked>
+                        <label class="btn btn-outline-primary" for="tf1h">1H</label>
+                        
+                        <input type="radio" class="btn-check" name="timeframe" id="tf24h" autocomplete="off">
+                        <label class="btn btn-outline-primary" for="tf24h">24H</label>
+                        
+                        <input type="radio" class="btn-check" name="timeframe" id="tf7d" autocomplete="off">
+                        <label class="btn btn-outline-primary" for="tf7d">7D</label>
+                        
+                        <input type="radio" class="btn-check" name="timeframe" id="tf30d" autocomplete="off">
+                        <label class="btn btn-outline-primary" for="tf30d">30D</label>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="priceChart" style="height: 400px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Cryptocurrencies -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Top Cryptocurrencies</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Name</th>
+                                <th>Price</th>
+                                <th>24h Change</th>
+                                <th>7d Change</th>
+                                <th>Market Cap</th>
+                                <th>Chart</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cryptoTable">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Trending Coins -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Trending</h5>
+            </div>
+            <div class="card-body">
+                <div id="trendingCoins">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="d-none">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let priceChart;
+let refreshInterval;
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    initializeDashboard();
+    startAutoRefresh();
+    
+    // Add timeframe change listeners
+    document.querySelectorAll('input[name="timeframe"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                loadPriceChart(this.id);
+            }
+        });
+    });
+});
+
+function initializeDashboard() {
+    loadMarketData();
+    loadPriceChart('tf1h');
+    loadTrendingCoins();
+}
+
+function loadMarketData() {
+    fetch('/api/market-data')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showError('Failed to load market data: ' + data.error);
+                return;
+            }
+            
+            updateMarketStats(data.global);
+            updateCryptoTable(data.coins);
+            updateLastUpdated();
+        })
+        .catch(error => {
+            console.error('Error loading market data:', error);
+            showError('Failed to load market data');
+        });
+}
+
+function updateMarketStats(globalData) {
+    document.getElementById('totalMarketCap').textContent = 
+        formatCurrency(globalData.total_market_cap.usd);
+    document.getElementById('totalVolume').textContent = 
+        formatCurrency(globalData.total_volume.usd);
+    document.getElementById('btcDominance').textContent = 
+        globalData.market_cap_percentage.btc.toFixed(1) + '%';
+    document.getElementById('activeCryptos').textContent = 
+        formatNumber(globalData.active_cryptocurrencies);
+}
+
+function updateCryptoTable(coins) {
+    if (!coins || !Array.isArray(coins)) {
+        console.warn("Crypto data unavailable");
+        return;
+    }
+
+    const tableBody = document.getElementById('cryptoTable');
+    if (!tableBody) return;
+
+    tableBody.innerHTML = '';
+
+    coins.forEach(coin => {
+        if (!coin || !coin.id) return; // skip invalid entries
+
+        const price = typeof coin.current_price === "number" 
+            ? coin.current_price 
+            : 0;
+
+        const price24h = typeof coin.price_change_percentage_24h === "number" 
+            ? coin.price_change_percentage_24h 
+            : 0;
+
+        const price7d = typeof coin.price_change_percentage_7d_in_currency === "number" 
+            ? coin.price_change_percentage_7d_in_currency 
+            : 0;
+
+        const sparkline = coin.sparkline_in_7d && Array.isArray(coin.sparkline_in_7d.price)
+            ? JSON.stringify(coin.sparkline_in_7d.price)
+            : "[]";
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${coin.market_cap_rank || '-'}</td>
+            <td>
+                <div class="d-flex align-items-center">
+                    <img src="${coin.image || ''}" alt="${coin.name || ''}" width="24" height="24" class="me-2">
+                    <div>
+                        <div>${coin.name || 'Unknown'}</div>
+                        <small class="text-muted">${(coin.symbol || '').toUpperCase()}</small>
+                    </div>
+                </div>
+            </td>
+            <td>$${price.toFixed(price < 1 ? 6 : 2)}</td>
+            <td>
+                <span class="badge ${price24h >= 0 ? 'bg-success' : 'bg-danger'}">
+                    ${price24h >= 0 ? '+' : ''}${price24h.toFixed(2)}%
+                </span>
+            </td>
+            <td>
+                <span class="badge ${price7d >= 0 ? 'bg-success' : 'bg-danger'}">
+                    ${price7d >= 0 ? '+' : ''}${price7d.toFixed(2)}%
+                </span>
+            </td>
+            <td>$${formatNumber(coin.market_cap || 0)}</td>
+            <td>
+                <canvas class="sparkline" data-sparkline='${sparkline}' width="100" height="30"></canvas>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+
+    drawSparklines();
+}
+
+function loadPriceChart(timeframe) {
+    const coinId = 'bitcoin';
+    const daysMap = {
+        'tf1h': 1,
+        'tf24h': 1,
+        'tf7d': 7,
+        'tf30d': 30
+    };
+    
+    const days = daysMap[timeframe] || 1;
+    
+    fetch(`/api/coin-price/${coinId}?days=${days}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showError('Failed to load price chart: ' + data.error);
+                return;
+            }
+            
+            updatePriceChart(data.prices);
+        })
+        .catch(error => {
+            console.error('Error loading price chart:', error);
+            showError('Failed to load price chart');
+        });
+}
+
+function updatePriceChart(priceData) {
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    
+    if (priceChart) {
+        priceChart.destroy();
+    }
+    
+    const labels = priceData.map(point => new Date(point[0]).toLocaleString());
+    const prices = priceData.map(point => point[1]);
+    
+    priceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Bitcoin Price (USD)',
+                data: prices,
+                borderColor: 'rgb(255, 193, 7)',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    display: false
+                },
+                y: {
+                    beginAtZero: false,
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+}
+
+function loadTrendingCoins() {
+    fetch('/api/trending')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showError('Failed to load trending coins: ' + data.error);
+                return;
+            }
+            
+            updateTrendingCoins(data.trending);
+        })
+        .catch(error => {
+            console.error('Error loading trending coins:', error);
+            showError('Failed to load trending coins');
+        });
+}
+
+function updateTrendingCoins(trending) {
+    const container = document.getElementById('trendingCoins');
+    container.innerHTML = '';
+    
+    trending.slice(0, 10).forEach((item, index) => {
+        const coin = item.item;
+        const trendingItem = document.createElement('div');
+        trendingItem.className = 'mb-3 p-3 border rounded';
+        trendingItem.innerHTML = `
+            <div class="d-flex align-items-center">
+                <span class="badge bg-primary me-2">${index + 1}</span>
+                <img src="${coin.small}" alt="${coin.name}" width="20" height="20" class="me-2">
+                <div>
+                    <div class="fw-bold">${coin.name}</div>
+                    <small class="text-muted">${coin.symbol}</small>
+                </div>
+            </div>
+        `;
+        container.appendChild(trendingItem);
+    });
+}
+
+function drawSparklines() {
+    document.querySelectorAll('.sparkline').forEach(canvas => {
+        const data = JSON.parse(canvas.getAttribute('data-sparkline'));
+        const ctx = canvas.getContext('2d');
+        
+        const width = canvas.width;
+        const height = canvas.height;
+        const padding = 2;
+        
+        const min = Math.min(...data);
+        const max = Math.max(...data);
+        const range = max - min;
+        
+        ctx.clearRect(0, 0, width, height);
+        ctx.strokeStyle = data[data.length - 1] > data[0] ? '#28a745' : '#dc3545';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        
+        data.forEach((point, index) => {
+            const x = (index / (data.length - 1)) * (width - padding * 2) + padding;
+            const y = height - padding - ((point - min) / range) * (height - padding * 2);
+            
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        
+        ctx.stroke();
+    });
+}
+
+function refreshData() {
+    showLoading(true);
+    initializeDashboard();
+    setTimeout(() => showLoading(false), 1000);
+}
+
+function startAutoRefresh() {
+    refreshInterval = setInterval(() => {
+        loadMarketData();
+    }, 60000); // Refresh every minute
+}
+
+function updateLastUpdated() {
+    document.getElementById('lastUpdated').textContent = 
+        'Updated ' + new Date().toLocaleTimeString();
+}
+
+function showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (show) {
+        overlay.classList.remove('d-none');
+    } else {
+        overlay.classList.add('d-none');
+    }
+}
+
+function showError(message) {
+    // Simple error display - could be enhanced with toast notifications
+    console.error(message);
+    alert('Error: ' + message);
+}
+
+function formatCurrency(value) {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        notation: 'compact',
+        maximumFractionDigits: 2
+    }).format(value);
+}
+
+function formatNumber(value) {
+    return new Intl.NumberFormat('en-US', {
+        notation: 'compact',
+        maximumFractionDigits: 1
+    }).format(value);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment variables / secrets
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and local data
+*.log
+*.sqlite3
+*.db
+
+# Replit
+.replit
+replit.nix
+.upm/
+.pythonlibs/
+.cache/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/

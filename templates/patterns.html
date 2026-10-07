@@ -1,0 +1,679 @@
+{% extends "base.html" %}
+
+{% block title %}Pattern Analysis - Crypto Analytics{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="fas fa-chart-area me-2"></i>Pattern Analysis</h1>
+            <div class="d-flex gap-2">
+                <select class="form-select form-select-sm" id="coinSelect" style="width: 200px;">
+                    <option value="bitcoin">Bitcoin (BTC)</option>
+                    <option value="ethereum">Ethereum (ETH)</option>
+                    <option value="cardano">Cardano (ADA)</option>
+                    <option value="solana">Solana (SOL)</option>
+                    <option value="chainlink">Chainlink (LINK)</option>
+                </select>
+                <button class="btn btn-primary btn-sm" onclick="analyzePatterns()">
+                    <i class="fas fa-search me-1"></i>Analyze
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pattern Summary -->
+<div class="row mb-4" id="patternSummary" style="display: none;">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Price Chart with Pattern Recognition</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="patternChart" style="height: 400px;"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Pattern Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <h3 id="overallSentiment" class="text-primary">Neutral</h3>
+                    <p class="text-muted">Overall Sentiment</p>
+                </div>
+                
+                <div class="border-top pt-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Confidence:</span>
+                        <span id="patternConfidence" class="badge bg-info">Medium</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Trend:</span>
+                        <span id="trendDirection" class="badge bg-secondary">Sideways</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Strength:</span>
+                        <span id="trendStrength" class="badge bg-primary">Moderate</span>
+                    </div>
+                </div>
+                
+                <div class="border-top pt-3 mt-3">
+                    <h6 class="mb-2">Signal Breakdown</h6>
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div id="bullishSignals" class="fw-bold text-success">0</div>
+                            <small class="text-muted">Bullish</small>
+                        </div>
+                        <div class="col-4">
+                            <div id="bearishSignals" class="fw-bold text-danger">0</div>
+                            <small class="text-muted">Bearish</small>
+                        </div>
+                        <div class="col-4">
+                            <div id="neutralSignals" class="fw-bold text-secondary">0</div>
+                            <small class="text-muted">Neutral</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="border-top pt-3 mt-3">
+                    <h6 class="mb-2">Recommendation</h6>
+                    <div id="patternRecommendation" class="alert alert-info">
+                        Select a cryptocurrency and click "Analyze" to see pattern recommendations.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Technical Analysis -->
+<div class="row mb-4" id="technicalAnalysis" style="display: none;">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Support & Resistance Levels</h6>
+            </div>
+            <div class="card-body">
+                <div id="supportResistance">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Momentum Indicators</h6>
+            </div>
+            <div class="card-body">
+                <div id="momentumIndicators">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Volatility and Trend Analysis -->
+<div class="row mb-4" id="detailedAnalysis" style="display: none;">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Volatility Analysis</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="volatilityChart" style="height: 250px;"></canvas>
+                <div id="volatilityMetrics" class="mt-3">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Trend Analysis</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="trendChart" style="height: 250px;"></canvas>
+                <div id="trendMetrics" class="mt-3">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Candlestick Patterns -->
+<div class="row mb-4" id="candlestickSection" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Recent Candlestick Patterns</h6>
+            </div>
+            <div class="card-body">
+                <div id="candlestickPatterns">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading State -->
+<div id="loadingState" class="text-center py-5">
+    <div class="card">
+        <div class="card-body">
+            <i class="fas fa-chart-area fa-3x text-muted mb-3"></i>
+            <h4>Select a cryptocurrency to analyze patterns</h4>
+            <p class="text-muted">Choose from the dropdown above and click "Analyze" to see technical analysis and pattern recognition.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Processing State -->
+<div id="processingState" class="text-center py-5" style="display: none;">
+    <div class="card">
+        <div class="card-body">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h4>Analyzing Patterns...</h4>
+            <p class="text-muted">Processing historical data and identifying technical patterns. This may take a moment.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let patternChart;
+let volatilityChart;
+let trendChart;
+
+function analyzePatterns() {
+    const coinId = document.getElementById('coinSelect').value;
+    
+    // Show processing state
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('processingState').style.display = 'block';
+    hideAllSections();
+    
+    fetch(`/api/patterns/${coinId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('processingState').style.display = 'none';
+            
+            if (data.error) {
+                showError('Failed to analyze patterns: ' + data.error);
+                document.getElementById('loadingState').style.display = 'block';
+                return;
+            }
+            
+            displayPatterns(data);
+        })
+        .catch(error => {
+            console.error('Error analyzing patterns:', error);
+            document.getElementById('processingState').style.display = 'none';
+            document.getElementById('loadingState').style.display = 'block';
+            showError('Failed to analyze patterns');
+        });
+}
+
+function hideAllSections() {
+    document.getElementById('patternSummary').style.display = 'none';
+    document.getElementById('technicalAnalysis').style.display = 'none';
+    document.getElementById('detailedAnalysis').style.display = 'none';
+    document.getElementById('candlestickSection').style.display = 'none';
+}
+
+function displayPatterns(data) {
+    // Show pattern sections
+    document.getElementById('patternSummary').style.display = 'block';
+    document.getElementById('technicalAnalysis').style.display = 'block';
+    document.getElementById('detailedAnalysis').style.display = 'block';
+    document.getElementById('candlestickSection').style.display = 'block';
+    
+    // Update pattern summary
+    updatePatternSummary(data.summary);
+    
+    // Update technical analysis sections
+    updateSupportResistance(data.support_resistance);
+    updateMomentumIndicators(data.momentum_indicators);
+    updateVolatilityAnalysis(data.volatility_analysis);
+    updateTrendAnalysis(data.trend_analysis);
+    updateCandlestickPatterns(data.candlestick_patterns);
+    
+    // Create charts
+    createPatternChart(data);
+    createVolatilityChart(data);
+    createTrendChart(data);
+}
+
+function updatePatternSummary(summary) {
+    if (!summary) return;
+    
+    document.getElementById('overallSentiment').textContent = summary.overall_sentiment;
+    document.getElementById('overallSentiment').className = `text-${getSentimentColor(summary.overall_sentiment)}`;
+    
+    document.getElementById('patternConfidence').textContent = summary.confidence;
+    document.getElementById('patternConfidence').className = `badge ${getConfidenceBadgeClass(summary.confidence)}`;
+    
+    // Update signal breakdown
+    if (summary.signal_breakdown) {
+        document.getElementById('bullishSignals').textContent = summary.signal_breakdown.bullish;
+        document.getElementById('bearishSignals').textContent = summary.signal_breakdown.bearish;
+        document.getElementById('neutralSignals').textContent = summary.signal_breakdown.neutral;
+    }
+    
+    // Update recommendation
+    if (summary.recommendation) {
+        const alertClass = summary.overall_sentiment === 'Bullish' ? 'alert-success' : 
+                          summary.overall_sentiment === 'Bearish' ? 'alert-danger' : 'alert-info';
+        document.getElementById('patternRecommendation').className = `alert ${alertClass}`;
+        document.getElementById('patternRecommendation').textContent = summary.recommendation;
+    }
+}
+
+function updateSupportResistance(data) {
+    if (!data) return;
+    
+    const container = document.getElementById('supportResistance');
+    let html = '';
+    
+    if (data.resistance_levels && data.resistance_levels.length > 0) {
+        html += '<h6 class="text-danger mb-2">Resistance Levels</h6>';
+        data.resistance_levels.forEach(level => {
+            html += `<div class="d-flex justify-content-between mb-1">
+                <span>Level:</span>
+                <span class="fw-bold">$${level.toFixed(2)}</span>
+            </div>`;
+        });
+    }
+    
+    if (data.support_levels && data.support_levels.length > 0) {
+        html += '<h6 class="text-success mb-2 mt-3">Support Levels</h6>';
+        data.support_levels.forEach(level => {
+            html += `<div class="d-flex justify-content-between mb-1">
+                <span>Level:</span>
+                <span class="fw-bold">$${level.toFixed(2)}</span>
+            </div>`;
+        });
+    }
+    
+    html += `<div class="border-top pt-2 mt-3">
+        <div class="d-flex justify-content-between mb-1">
+            <span>Current Price:</span>
+            <span class="fw-bold text-primary">$${data.current_price.toFixed(2)}</span>
+        </div>
+    </div>`;
+    
+    container.innerHTML = html;
+}
+
+function updateMomentumIndicators(data) {
+    if (!data) return;
+    
+    const container = document.getElementById('momentumIndicators');
+    container.innerHTML = `
+        <div class="row mb-3">
+            <div class="col-6">
+                <small class="text-muted">RSI</small>
+                <div class="d-flex align-items-center">
+                    <div class="fw-bold">${data.rsi.toFixed(1)}</div>
+                    <span class="badge ms-2 ${getRsiBadgeClass(data.rsi_signal)}">${data.rsi_signal}</span>
+                </div>
+                <div class="progress mt-1" style="height: 5px;">
+                    <div class="progress-bar ${getRsiProgressClass(data.rsi)}" style="width: ${data.rsi}%"></div>
+                </div>
+            </div>
+            <div class="col-6">
+                <small class="text-muted">Momentum</small>
+                <div class="fw-bold">${data.momentum}</div>
+                <span class="badge ${data.momentum === 'Positive' ? 'bg-success' : 'bg-danger'}">${data.momentum}</span>
+            </div>
+        </div>
+        
+        <div class="border-top pt-2">
+            <div class="d-flex justify-content-between mb-1">
+                <span>MACD:</span>
+                <span class="fw-bold">${data.macd.toFixed(4)}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+                <span>Signal:</span>
+                <span class="fw-bold">${data.macd_signal.toFixed(4)}</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span>Histogram:</span>
+                <span class="fw-bold ${data.macd_histogram >= 0 ? 'text-success' : 'text-danger'}">
+                    ${data.macd_histogram.toFixed(4)}
+                </span>
+            </div>
+        </div>
+    `;
+}
+
+function updateVolatilityAnalysis(data) {
+    if (!data) return;
+    
+    const container = document.getElementById('volatilityMetrics');
+    container.innerHTML = `
+        <div class="row text-center">
+            <div class="col-6">
+                <div class="fw-bold">${data.volatility_24h.toFixed(2)}%</div>
+                <small class="text-muted">24h Volatility</small>
+            </div>
+            <div class="col-6">
+                <div class="fw-bold">${data.volatility_7d.toFixed(2)}%</div>
+                <small class="text-muted">7d Volatility</small>
+            </div>
+        </div>
+        
+        <div class="border-top pt-2 mt-2">
+            <div class="d-flex justify-content-between mb-1">
+                <span>Level:</span>
+                <span class="badge ${getVolatilityBadgeClass(data.volatility_level)}">${data.volatility_level}</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span>Trend:</span>
+                <span class="badge bg-info">${data.volatility_trend}</span>
+            </div>
+        </div>
+    `;
+}
+
+function updateTrendAnalysis(data) {
+    if (!data) return;
+    
+    document.getElementById('trendDirection').textContent = data.trend_direction;
+    document.getElementById('trendDirection').className = `badge ${getTrendBadgeClass(data.trend_direction)}`;
+    
+    document.getElementById('trendStrength').textContent = data.trend_strength;
+    document.getElementById('trendStrength').className = `badge ${getStrengthBadgeClass(data.trend_strength)}`;
+    
+    const container = document.getElementById('trendMetrics');
+    container.innerHTML = `
+        <div class="row text-center mb-2">
+            <div class="col-6">
+                <div class="fw-bold">${data.correlation.toFixed(3)}</div>
+                <small class="text-muted">Correlation</small>
+            </div>
+            <div class="col-6">
+                <div class="fw-bold">${data.slope > 0 ? '+' : ''}${data.slope.toFixed(2)}</div>
+                <small class="text-muted">Slope</small>
+            </div>
+        </div>
+        
+        <div class="border-top pt-2">
+            <div class="d-flex justify-content-between mb-1">
+                <span>MA Cross:</span>
+                <span class="badge ${data.ma_cross_signal === 'Bullish' ? 'bg-success' : 'bg-danger'}">
+                    ${data.ma_cross_signal}
+                </span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+                <span>Above MA5:</span>
+                <span class="text-${data.price_vs_ma.above_ma5 ? 'success' : 'danger'}">
+                    ${data.price_vs_ma.above_ma5 ? 'Yes' : 'No'}
+                </span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span>Above MA20:</span>
+                <span class="text-${data.price_vs_ma.above_ma20 ? 'success' : 'danger'}">
+                    ${data.price_vs_ma.above_ma20 ? 'Yes' : 'No'}
+                </span>
+            </div>
+        </div>
+    `;
+}
+
+function updateCandlestickPatterns(data) {
+    if (!data) return;
+    
+    const container = document.getElementById('candlestickPatterns');
+    let html = '';
+    
+    if (data.recent_patterns && data.recent_patterns.length > 0) {
+        html += '<div class="row">';
+        data.recent_patterns.forEach((pattern, index) => {
+            html += `
+                <div class="col-md-4 mb-2">
+                    <div class="border rounded p-2 text-center">
+                        <div class="fw-bold">${pattern}</div>
+                        <small class="text-muted">Pattern ${index + 1}</small>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    } else {
+        html = '<div class="text-muted text-center">No significant patterns detected in recent data.</div>';
+    }
+    
+    html += `
+        <div class="border-top pt-3 mt-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <span>Overall Signal:</span>
+                <span class="badge ${getCandlestickBadgeClass(data.overall_signal)}">
+                    ${data.overall_signal}
+                </span>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function createPatternChart(data) {
+    // This would be implemented with actual price data and pattern overlays
+    // For now, showing a placeholder implementation
+    const ctx = document.getElementById('patternChart').getContext('2d');
+    
+    if (patternChart) {
+        patternChart.destroy();
+    }
+    
+    // Generate sample data for demonstration
+    const sampleData = Array.from({length: 30}, (_, i) => 50000 + Math.random() * 10000);
+    
+    patternChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: 30}, (_, i) => `Day ${i + 1}`),
+            datasets: [{
+                label: 'Price',
+                data: sampleData,
+                borderColor: 'rgb(255, 193, 7)',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                borderWidth: 2,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+}
+
+function createVolatilityChart(data) {
+    const ctx = document.getElementById('volatilityChart').getContext('2d');
+    
+    if (volatilityChart) {
+        volatilityChart.destroy();
+    }
+    
+    // Generate sample volatility data
+    const volatilityData = Array.from({length: 14}, () => Math.random() * 10);
+    
+    volatilityChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: Array.from({length: 14}, (_, i) => `D-${14-i}`),
+            datasets: [{
+                label: 'Daily Volatility %',
+                data: volatilityData,
+                backgroundColor: 'rgba(220, 53, 69, 0.5)',
+                borderColor: 'rgba(220, 53, 69, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Volatility %'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createTrendChart(data) {
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    
+    if (trendChart) {
+        trendChart.destroy();
+    }
+    
+    // Generate sample trend data
+    const trendData = Array.from({length: 20}, (_, i) => 100 + i * 2 + Math.random() * 5);
+    const trendLine = Array.from({length: 20}, (_, i) => 100 + i * 2);
+    
+    trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: 20}, (_, i) => `P${i + 1}`),
+            datasets: [{
+                label: 'Price',
+                data: trendData,
+                borderColor: 'rgba(13, 202, 240, 1)',
+                backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                borderWidth: 2,
+                pointRadius: 2
+            }, {
+                label: 'Trend Line',
+                data: trendLine,
+                borderColor: 'rgba(255, 193, 7, 1)',
+                borderWidth: 1,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+}
+
+// Helper functions for styling
+function getSentimentColor(sentiment) {
+    switch(sentiment.toLowerCase()) {
+        case 'bullish': return 'success';
+        case 'bearish': return 'danger';
+        default: return 'secondary';
+    }
+}
+
+function getConfidenceBadgeClass(confidence) {
+    switch(confidence.toLowerCase()) {
+        case 'high': return 'bg-success';
+        case 'medium': return 'bg-warning';
+        case 'low': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+function getRsiBadgeClass(signal) {
+    switch(signal.toLowerCase()) {
+        case 'overbought': return 'bg-danger';
+        case 'oversold': return 'bg-success';
+        default: return 'bg-secondary';
+    }
+}
+
+function getRsiProgressClass(rsi) {
+    if (rsi > 70) return 'bg-danger';
+    if (rsi < 30) return 'bg-success';
+    return 'bg-warning';
+}
+
+function getVolatilityBadgeClass(level) {
+    switch(level.toLowerCase()) {
+        case 'high': return 'bg-danger';
+        case 'medium': return 'bg-warning';
+        case 'low': return 'bg-success';
+        default: return 'bg-secondary';
+    }
+}
+
+function getTrendBadgeClass(direction) {
+    switch(direction.toLowerCase()) {
+        case 'bullish': return 'bg-success';
+        case 'bearish': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+function getStrengthBadgeClass(strength) {
+    switch(strength.toLowerCase()) {
+        case 'strong': return 'bg-primary';
+        case 'moderate': return 'bg-info';
+        case 'weak': return 'bg-secondary';
+        default: return 'bg-secondary';
+    }
+}
+
+function getCandlestickBadgeClass(signal) {
+    switch(signal.toLowerCase()) {
+        case 'bullish': return 'bg-success';
+        case 'bearish': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+function showError(message) {
+    console.error(message);
+    alert('Error: ' + message);
+}
+</script>
+{% endblock %}

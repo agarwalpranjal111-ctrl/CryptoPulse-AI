@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+
+{% block title %}AI Predictions - Crypto Analytics{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="fas fa-brain me-2"></i>AI Price Predictions</h1>
+            <div class="d-flex gap-2">
+                <select class="form-select form-select-sm" id="coinSelect" style="width: 200px;">
+                    <option value="bitcoin">Bitcoin (BTC)</option>
+                    <option value="ethereum">Ethereum (ETH)</option>
+                    <option value="cardano">Cardano (ADA)</option>
+                    <option value="solana">Solana (SOL)</option>
+                    <option value="chainlink">Chainlink (LINK)</option>
+                </select>
+                <button class="btn btn-primary btn-sm" onclick="generatePredictions()">
+                    <i class="fas fa-magic me-1"></i>Generate
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Prediction Summary -->
+<div class="row mb-4" id="predictionSummary" style="display: none;">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">24-Hour Price Forecast</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="predictionChart" style="height: 400px;"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Prediction Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <h3 id="currentPrice" class="text-primary">$0.00</h3>
+                    <p class="text-muted">Current Price</p>
+                </div>
+                
+                <div class="row text-center mb-3">
+                    <div class="col-6">
+                        <h4 id="predicted1h" class="text-success">$0.00</h4>
+                        <small class="text-muted">1h Prediction</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 id="predicted24h" class="text-warning">$0.00</h4>
+                        <small class="text-muted">24h Prediction</small>
+                    </div>
+                </div>
+                
+                <div class="border-top pt-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Confidence Level:</span>
+                        <span id="confidenceLevel" class="badge bg-info">Medium</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Recommendation:</span>
+                        <span id="recommendation" class="badge bg-secondary">Hold</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Signal Strength:</span>
+                        <span id="signalStrength" class="badge bg-primary">Medium</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Model Performance -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Model Performance</h6>
+            </div>
+            <div class="card-body">
+                <div id="modelPerformance">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Historical vs Predicted -->
+<div class="row mb-4" id="comparisonSection" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Historical Data vs AI Predictions</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="comparisonChart" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Prediction Details -->
+<div class="row mb-4" id="predictionDetails" style="display: none;">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Random Forest Model</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <small class="text-muted">Accuracy</small>
+                        <div id="rfAccuracy" class="fw-bold">0%</div>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">RMSE</small>
+                        <div id="rfRmse" class="fw-bold">$0.00</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <canvas id="rfPredictionChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Linear Regression Model</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <small class="text-muted">Accuracy</small>
+                        <div id="lrAccuracy" class="fw-bold">0%</div>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">RMSE</small>
+                        <div id="lrRmse" class="fw-bold">$0.00</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <canvas id="lrPredictionChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading State -->
+<div id="loadingState" class="text-center py-5">
+    <div class="card">
+        <div class="card-body">
+            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+            <h4>Select a cryptocurrency to generate AI predictions</h4>
+            <p class="text-muted">Choose from the dropdown above and click "Generate" to see price forecasts powered by machine learning models.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Processing State -->
+<div id="processingState" class="text-center py-5" style="display: none;">
+    <div class="card">
+        <div class="card-body">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h4>Generating Predictions...</h4>
+            <p class="text-muted">Analyzing historical data and training ML models. This may take a few moments.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let predictionChart;
+let comparisonChart;
+let rfChart;
+let lrChart;
+
+function generatePredictions() {
+    const coinId = document.getElementById('coinSelect').value;
+    
+    // Show processing state
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('processingState').style.display = 'block';
+    document.getElementById('predictionSummary').style.display = 'none';
+    document.getElementById('comparisonSection').style.display = 'none';
+    document.getElementById('predictionDetails').style.display = 'none';
+    
+    fetch(`/api/predictions/${coinId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('processingState').style.display = 'none';
+            
+            if (data.error) {
+                showError('Failed to generate predictions: ' + data.error);
+                document.getElementById('loadingState').style.display = 'block';
+                return;
+            }
+            
+            displayPredictions(data);
+        })
+        .catch(error => {
+            console.error('Error generating predictions:', error);
+            document.getElementById('processingState').style.display = 'none';
+            document.getElementById('loadingState').style.display = 'block';
+            showError('Failed to generate predictions');
+        });
+}
+
+function displayPredictions(data) {
+    // Show prediction sections
+    document.getElementById('predictionSummary').style.display = 'block';
+    document.getElementById('comparisonSection').style.display = 'block';
+    document.getElementById('predictionDetails').style.display = 'block';
+    
+    // ---- Safe Current Price ----
+    const price = (typeof data.current_price === "number") ? data.current_price : 0;
+    document.getElementById('currentPrice').textContent = `$${price.toFixed(2)}`;
+    
+    // ---- Safe Predictions ----
+    if (data.predictions && Array.isArray(data.predictions.random_forest) && data.predictions.random_forest.length > 0) {
+        document.getElementById('predicted1h').textContent = `$${data.predictions.random_forest[0].toFixed(2)}`;
+        document.getElementById('predicted24h').textContent = `$${data.predictions.random_forest[23]?.toFixed(2) || "N/A"}`;
+    } else {
+        document.getElementById('predicted1h').textContent = "N/A";
+        document.getElementById('predicted24h').textContent = "N/A";
+    }
+    
+    // ---- Confidence ----
+    const confidence = data.confidence_level || "Unknown";
+    document.getElementById('confidenceLevel').textContent = confidence;
+    document.getElementById('confidenceLevel').className = `badge ${getConfidenceBadgeClass(confidence)}`;
+    
+    // ---- Recommendation ----
+    if (data.recommendation) {
+        document.getElementById('recommendation').textContent = data.recommendation.action || "N/A";
+        document.getElementById('recommendation').className = `badge ${getRecommendationBadgeClass(data.recommendation.action || "")}`;
+        document.getElementById('signalStrength').textContent = data.recommendation.confidence || "N/A";
+    }
+    
+    // ---- Model Performance ----
+    if (data.model_performance) {
+        updateModelPerformance(data.model_performance);
+    }
+    
+    // ---- Charts ----
+    if (data.predictions) {
+        createPredictionChart(data);
+        createComparisonChart(data);
+        createModelCharts(data);
+    }
+}
+
+function updateModelPerformance(performance) {
+    const container = document.getElementById('modelPerformance');
+    container.innerHTML = '';
+    
+    if (!performance) return;
+    
+    Object.entries(performance).forEach(([model, metrics]) => {
+        const acc = (metrics && typeof metrics.accuracy === "number") ? metrics.accuracy : 0;
+        const rmse = (metrics && typeof metrics.rmse === "number") ? metrics.rmse : 0;
+
+        const modelDiv = document.createElement('div');
+        modelDiv.className = 'mb-2';
+        modelDiv.innerHTML = `
+            <div class="d-flex justify-content-between">
+                <small>${model.replace('_', ' ').toUpperCase()}</small>
+                <small class="text-success">${acc.toFixed(1)}%</small>
+            </div>
+            <div class="progress" style="height: 5px;">
+                <div class="progress-bar" role="progressbar" style="width: ${acc}%"></div>
+            </div>
+        `;
+        container.appendChild(modelDiv);
+    });
+}
+
+function createPredictionChart(data) {
+    const ctx = document.getElementById('predictionChart').getContext('2d');
+    
+    if (predictionChart) {
+        predictionChart.destroy();
+    }
+    
+    // Average predictions from all models
+    const avgPredictions = [];
+    if (data.predictions.random_forest && data.predictions.linear_regression) {
+        for (let i = 0; i < data.predictions.random_forest.length; i++) {
+            avgPredictions.push(
+                (data.predictions.random_forest[i] + data.predictions.linear_regression[i]) / 2
+            );
+        }
+    }
+    
+    predictionChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.timestamps.map(ts => new Date(ts).toLocaleTimeString()),
+            datasets: [{
+                label: 'Predicted Price',
+                data: avgPredictions,
+                borderColor: 'rgb(13, 202, 240)',
+                backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.1
+            }, {
+                label: 'Current Price',
+                data: Array(24).fill(data.current_price),
+                borderColor: 'rgb(255, 193, 7)',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                borderWidth: 1,
+                borderDash: [5, 5],
+                pointRadius: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time (Next 24 Hours)'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Price (USD)'
+                    },
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+}
+
+function createComparisonChart(data) {
+    // This would show historical vs predicted - simplified for demo
+    const ctx = document.getElementById('comparisonChart').getContext('2d');
+    
+    if (comparisonChart) {
+        comparisonChart.destroy();
+    }
+    
+    // Generate some sample historical data points
+    const historicalData = Array.from({length: 24}, (_, i) => {
+        return data.current_price * (0.98 + Math.random() * 0.04);
+    });
+    
+    comparisonChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: 48}, (_, i) => `T-${48-i}`),
+            datasets: [{
+                label: 'Historical Prices',
+                data: [...historicalData, ...Array(24).fill(null)],
+                borderColor: 'rgb(108, 117, 125)',
+                backgroundColor: 'rgba(108, 117, 125, 0.1)',
+                borderWidth: 2
+            }, {
+                label: 'AI Predictions',
+                data: [...Array(24).fill(null), ...((data.predictions.random_forest || []).slice(0, 24))],
+                borderColor: 'rgb(25, 135, 84)',
+                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+}
+
+function createModelCharts(data) {
+    // Random Forest Chart
+    if (data.predictions.random_forest) {
+        createModelChart('rfPredictionChart', data.predictions.random_forest.slice(0, 12), 'RGB(220, 53, 69)');
+        
+        if (data.model_performance.random_forest) {
+            document.getElementById('rfAccuracy').textContent = data.model_performance.random_forest.accuracy.toFixed(1) + '%';
+            document.getElementById('rfRmse').textContent = '$' + data.model_performance.random_forest.rmse.toFixed(2);
+        }
+    }
+    
+    // Linear Regression Chart
+    if (data.predictions.linear_regression) {
+        createModelChart('lrPredictionChart', data.predictions.linear_regression.slice(0, 12), 'RGB(13, 110, 253)');
+        
+        if (data.model_performance.linear_regression) {
+            document.getElementById('lrAccuracy').textContent = data.model_performance.linear_regression.accuracy.toFixed(1) + '%';
+            document.getElementById('lrRmse').textContent = '$' + data.model_performance.linear_regression.rmse.toFixed(2);
+        }
+    }
+}
+
+// Keep a reference to charts
+let charts = {};
+
+function createModelChart(canvasId, labels, values, modelName) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    // Destroy existing chart if it exists
+    if (charts[canvasId]) {
+        charts[canvasId].destroy();
+    }
+
+    charts[canvasId] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: modelName,
+                data: values,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                fill: true,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+
+function getConfidenceBadgeClass(level) {
+    switch(level.toLowerCase()) {
+        case 'high': return 'bg-success';
+        case 'medium': return 'bg-warning';
+        case 'low': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+function getRecommendationBadgeClass(action) {
+    if (action.toLowerCase().includes('buy')) return 'bg-success';
+    if (action.toLowerCase().includes('sell')) return 'bg-danger';
+    return 'bg-secondary';
+}
+
+function showError(message) {
+    console.error(message);
+    alert('Error: ' + message);
+}
+</script>
+{% endblock %}

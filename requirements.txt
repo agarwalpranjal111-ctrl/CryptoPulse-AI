@@ -1,0 +1,8 @@
+fastapi>=0.110
+uvicorn[standard]>=0.30
+jinja2>=3.1
+requests>=2.31
+numpy
+pandas
+scikit-learn
+scipy
