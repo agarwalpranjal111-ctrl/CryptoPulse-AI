@@ -188,6 +188,7 @@ function loadMarketData() {
 }
 
 function updateMarketStats(globalData) {
+    if (globalData.approximate) { setBanner('Global market stats are unavailable right now. Totals shown cover the top 10 coins only.'); }
     document.getElementById('totalMarketCap').textContent = 
         formatCurrency(globalData.total_market_cap.usd);
     document.getElementById('totalVolume').textContent = 
@@ -281,6 +282,7 @@ function loadPriceChart(timeframe) {
                 return;
             }
             
+            setSimulatedBanner(data.is_mock);
             updatePriceChart(data.prices);
         })
         .catch(error => {

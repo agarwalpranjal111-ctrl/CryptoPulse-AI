@@ -2,12 +2,13 @@ import logging
 from datetime import datetime, timedelta
 
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 
 N_LAGS = 10        # how many past hourly returns the models see
-HORIZON = 12       # hours to forecast
+HORIZON = 24       # hours to forecast (the Predictions page shows 24h)
 
 
 def _rsi(prices, window=14):
@@ -20,7 +21,11 @@ def _rsi(prices, window=14):
 
 
 def _features(prices):
-    """Features for predicting the NEXT hourly return, from prices up to now."""
+    """Features for predicting the NEXT hourly return, computed from prices up to now.
+
+    Uses only returns / ratios (not raw prices), so it works the same whether
+    the coin costs $0.1 or $100,000, and can be recomputed after each forecast step.
+    """
     p = np.asarray(prices, dtype=float)
     rets = np.diff(p) / p[:-1]
     lags = rets[-N_LAGS:][::-1]                       # most recent first
@@ -36,10 +41,10 @@ class AIPredictor:
     MIN_POINTS = N_LAGS + 20
 
     def _new_models(self):
-        # Created per request: models are not shared between threads.
+        # Created per request: models/scalers are not shared between threads.
         return {
             'random_forest': RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=1),
-            'linear_regression': LinearRegression()
+            'linear_regression': LinearRegression(),
         }
 
     def predict_price(self, historical_data):
@@ -49,7 +54,7 @@ class AIPredictor:
             if len(prices) < self.MIN_POINTS + 10:
                 return {'error': 'Insufficient historical data for prediction'}
 
-            # Training set: features at time t -> return from t to t+1
+            # Training set: features at time t  ->  return from t to t+1
             start = max(N_LAGS + 1, 10)
             X, y, base = [], [], []
             for t in range(start, len(prices) - 1):
@@ -85,7 +90,7 @@ class AIPredictor:
                 performance[name] = {
                     'mae': mae,
                     'rmse': rmse,
-                    'accuracy': max(0.0, 100.0 - mape),
+                    'accuracy': max(0.0, 100.0 - mape),   # 100 - average % error (1-hour ahead)
                     'directional_accuracy': direction,
                     'naive_mae': naive_mae,
                     'beats_naive': bool(mae < naive_mae),
@@ -109,6 +114,7 @@ class AIPredictor:
                 'timestamps': timestamps,
                 'model_performance': performance,
                 'current_price': float(prices[-1]),
+                'history': [float(x) for x in prices[-48:]],
                 'confidence_level': self._calculate_confidence(performance),
                 'recommendation': self._generate_recommendation(predictions, prices[-1]),
                 'note': 'Experimental. Short-term crypto prices are very hard to predict; not financial advice.',
@@ -119,7 +125,7 @@ class AIPredictor:
             return {'error': str(e)}
 
     def _calculate_confidence(self, performance):
-        """Do the models actually beat the 'no change' baseline?"""
+        """Honest confidence: do the models actually beat the 'no change' baseline?"""
         beat = [p for p in performance.values() if p['beats_naive']]
         avg_dir = np.mean([p['directional_accuracy'] for p in performance.values()])
         if len(beat) == len(performance) and avg_dir >= 58:

@@ -217,6 +217,7 @@ function analyzePatterns() {
                 return;
             }
             
+            setSimulatedBanner(data.is_mock);
             displayPatterns(data);
         })
         .catch(error => {

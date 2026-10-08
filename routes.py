@@ -64,8 +64,10 @@ def setup_routes(app: FastAPI):
         try:
             history = crypto_service.get_coin_history(coin_id, 7)
             result = ai_predictor.predict_price(history)
-            if isinstance(result, dict) and history.get("is_mock"):
-                result["warning"] = "Live data unavailable; prediction based on simulated data."
+            if isinstance(result, dict):
+                result["is_mock"] = bool(history.get("is_mock"))
+                if result["is_mock"]:
+                    result["warning"] = "Live data unavailable; prediction based on simulated data."
             return result
         except Exception as e:
             logging.exception(f"Error generating predictions: {e}")
@@ -76,8 +78,10 @@ def setup_routes(app: FastAPI):
         try:
             history = crypto_service.get_coin_history(coin_id, 14)
             result = pattern_analyzer.analyze_patterns(history)
-            if isinstance(result, dict) and history.get("is_mock"):
-                result["warning"] = "Live data unavailable; analysis based on simulated data."
+            if isinstance(result, dict):
+                result["is_mock"] = bool(history.get("is_mock"))
+                if result["is_mock"]:
+                    result["warning"] = "Live data unavailable; analysis based on simulated data."
             return result
         except Exception as e:
             logging.exception(f"Error analyzing patterns: {e}")

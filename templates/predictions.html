@@ -28,7 +28,7 @@
     <div class="col-lg-8">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">24-Hour Price Forecast</h5>
+                <h5 class="mb-0">24-Hour Price Forecast <small class="text-muted">(experimental, not financial advice)</small></h5>
             </div>
             <div class="card-body">
                 <canvas id="predictionChart" style="height: 400px;"></canvas>
@@ -113,7 +113,7 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-6">
-                        <small class="text-muted">Accuracy</small>
+                        <small class="text-muted" title="100% minus the average 1-hour-ahead error. High values are normal for a 1-hour horizon and do not mean the 24h forecast is that accurate.">1-hour accuracy</small>
                         <div id="rfAccuracy" class="fw-bold">0%</div>
                     </div>
                     <div class="col-6">
@@ -136,7 +136,7 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-6">
-                        <small class="text-muted">Accuracy</small>
+                        <small class="text-muted" title="100% minus the average 1-hour-ahead error. High values are normal for a 1-hour horizon and do not mean the 24h forecast is that accurate.">1-hour accuracy</small>
                         <div id="lrAccuracy" class="fw-bold">0%</div>
                     </div>
                     <div class="col-6">
@@ -216,6 +216,7 @@ function generatePredictions() {
 }
 
 function displayPredictions(data) {
+    setSimulatedBanner(data.is_mock);
     // Show prediction sections
     document.getElementById('predictionSummary').style.display = 'block';
     document.getElementById('comparisonSection').style.display = 'block';
@@ -228,7 +229,7 @@ function displayPredictions(data) {
     // ---- Safe Predictions ----
     if (data.predictions && Array.isArray(data.predictions.random_forest) && data.predictions.random_forest.length > 0) {
         document.getElementById('predicted1h').textContent = `$${data.predictions.random_forest[0].toFixed(2)}`;
-        document.getElementById('predicted24h').textContent = `$${data.predictions.random_forest[23]?.toFixed(2) || "N/A"}`;
+        document.getElementById('predicted24h').textContent = `$${data.predictions.random_forest.slice(-1)[0]?.toFixed(2) || "N/A"}`;
     } else {
         document.getElementById('predicted1h').textContent = "N/A";
         document.getElementById('predicted24h').textContent = "N/A";
@@ -274,7 +275,7 @@ function updateModelPerformance(performance) {
         modelDiv.innerHTML = `
             <div class="d-flex justify-content-between">
                 <small>${model.replace('_', ' ').toUpperCase()}</small>
-                <small class="text-success">${acc.toFixed(1)}%</small>
+                <small class="text-success">${acc.toFixed(1)}% (1h)</small>
             </div>
             <div class="progress" style="height: 5px;">
                 <div class="progress-bar" role="progressbar" style="width: ${acc}%"></div>
@@ -315,7 +316,7 @@ function createPredictionChart(data) {
                 tension: 0.1
             }, {
                 label: 'Current Price',
-                data: Array(24).fill(data.current_price),
+                data: Array(data.timestamps.length).fill(data.current_price),
                 borderColor: 'rgb(255, 193, 7)',
                 backgroundColor: 'rgba(255, 193, 7, 0.1)',
                 borderWidth: 1,
@@ -358,27 +359,41 @@ function createComparisonChart(data) {
         comparisonChart.destroy();
     }
     
-    // Generate some sample historical data points
-    const historicalData = Array.from({length: 24}, (_, i) => {
-        return data.current_price * (0.98 + Math.random() * 0.04);
-    });
-    
+    // Real recent prices from the server (last 24 hours) followed by the forecast
+    const hist = (data.history || []).slice(-24);
+    const fc = data.predictions.random_forest || [];
+    const lr = data.predictions.linear_regression || [];
+    const labels = [
+        ...hist.map((_, i) => `T-${hist.length - i}`),
+        ...fc.map((_, i) => `T+${i + 1}`)
+    ];
+    const pad = Array(hist.length).fill(null);
+    // start the forecast lines at the last real price so they connect
+    const lastReal = hist.length ? hist[hist.length - 1] : null;
+
     comparisonChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: Array.from({length: 48}, (_, i) => `T-${48-i}`),
+            labels: labels,
             datasets: [{
-                label: 'Historical Prices',
-                data: [...historicalData, ...Array(24).fill(null)],
+                label: 'Historical Prices (real)',
+                data: [...hist, ...Array(fc.length).fill(null)],
                 borderColor: 'rgb(108, 117, 125)',
                 backgroundColor: 'rgba(108, 117, 125, 0.1)',
                 borderWidth: 2
             }, {
-                label: 'AI Predictions',
-                data: [...Array(24).fill(null), ...((data.predictions.random_forest || []).slice(0, 24))],
+                label: 'Random Forest forecast',
+                data: [...pad.slice(0, -1), lastReal, ...fc],
                 borderColor: 'rgb(25, 135, 84)',
                 backgroundColor: 'rgba(25, 135, 84, 0.1)',
                 borderWidth: 2
+            }, {
+                label: 'Linear Regression forecast',
+                data: [...pad.slice(0, -1), lastReal, ...lr],
+                borderColor: 'rgb(13, 110, 253)',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                borderWidth: 2,
+                borderDash: [4, 4]
             }]
         },
         options: {
@@ -401,7 +416,7 @@ function createComparisonChart(data) {
 function createModelCharts(data) {
     // Random Forest Chart
     if (data.predictions.random_forest) {
-        createModelChart('rfPredictionChart', data.predictions.random_forest.slice(0, 12), 'RGB(220, 53, 69)');
+        createModelChart('rfPredictionChart', data.timestamps.map(ts => new Date(ts).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})), data.predictions.random_forest, 'Random Forest forecast');
         
         if (data.model_performance.random_forest) {
             document.getElementById('rfAccuracy').textContent = data.model_performance.random_forest.accuracy.toFixed(1) + '%';
@@ -411,7 +426,7 @@ function createModelCharts(data) {
     
     // Linear Regression Chart
     if (data.predictions.linear_regression) {
-        createModelChart('lrPredictionChart', data.predictions.linear_regression.slice(0, 12), 'RGB(13, 110, 253)');
+        createModelChart('lrPredictionChart', data.timestamps.map(ts => new Date(ts).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})), data.predictions.linear_regression, 'Linear Regression forecast');
         
         if (data.model_performance.linear_regression) {
             document.getElementById('lrAccuracy').textContent = data.model_performance.linear_regression.accuracy.toFixed(1) + '%';
@@ -446,7 +461,8 @@ function createModelChart(canvasId, labels, values, modelName) {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: false } }
         }
     });
 }

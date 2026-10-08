@@ -66,8 +66,20 @@ class CryptoService:
                 "per_page": 10, "page": 1, "sparkline": True,
                 "price_change_percentage": "1h,24h,7d",
             })
-            global_data = self._make_request("global")
-            return {"coins": coins, "global": global_data["data"],
+            try:
+                global_data = self._make_request("global")["data"]
+            except Exception:
+                # Global stats failed: estimate from the top coins so the page still loads.
+                total_cap = sum(c.get("market_cap") or 0 for c in coins)
+                btc_cap = next((c.get("market_cap") or 0 for c in coins if c["id"] == "bitcoin"), 0)
+                global_data = {
+                    "total_market_cap": {"usd": total_cap},
+                    "total_volume": {"usd": sum(c.get("total_volume") or 0 for c in coins)},
+                    "market_cap_percentage": {"btc": (btc_cap / total_cap * 100) if total_cap else 0},
+                    "active_cryptocurrencies": 0,
+                    "approximate": True,
+                }
+            return {"coins": coins, "global": global_data,
                     "timestamp": datetime.now().isoformat()}
         return self._cached_call("market_overview", fetch)
 
