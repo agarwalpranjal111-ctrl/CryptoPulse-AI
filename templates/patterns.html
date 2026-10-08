@@ -31,7 +31,7 @@
                 <h5 class="mb-0">Price Chart with Pattern Recognition</h5>
             </div>
             <div class="card-body">
-                <canvas id="patternChart" style="height: 400px;"></canvas>
+                <div style="position: relative; height: 400px;"><canvas id="patternChart"></canvas></div>
             </div>
         </div>
     </div>
@@ -128,7 +128,7 @@
                 <h6 class="mb-0">Volatility Analysis</h6>
             </div>
             <div class="card-body">
-                <canvas id="volatilityChart" style="height: 250px;"></canvas>
+                <div style="position: relative; height: 250px;"><canvas id="volatilityChart"></canvas></div>
                 <div id="volatilityMetrics" class="mt-3">
                     <!-- Dynamic content -->
                 </div>
@@ -142,7 +142,7 @@
                 <h6 class="mb-0">Trend Analysis</h6>
             </div>
             <div class="card-body">
-                <canvas id="trendChart" style="height: 250px;"></canvas>
+                <div style="position: relative; height: 250px;"><canvas id="trendChart"></canvas></div>
                 <div id="trendMetrics" class="mt-3">
                     <!-- Dynamic content -->
                 </div>
@@ -473,42 +473,43 @@ function updateCandlestickPatterns(data) {
 }
 
 function createPatternChart(data) {
-    // This would be implemented with actual price data and pattern overlays
-    // For now, showing a placeholder implementation
     const ctx = document.getElementById('patternChart').getContext('2d');
-    
-    if (patternChart) {
-        patternChart.destroy();
+    if (patternChart) { patternChart.destroy(); }
+
+    const cd = data.chart_data;
+    if (!cd) return;
+    const labels = cd.timestamps.map(ts => new Date(ts).toLocaleString([], {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'}));
+    const sr = data.support_resistance || {};
+    const datasets = [{
+        label: 'Price',
+        data: cd.prices,
+        borderColor: 'rgb(255, 193, 7)',
+        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        pointRadius: 0,
+        tension: 0.1
+    }];
+    if (sr.nearest_resistance) {
+        datasets.push({ label: 'Nearest resistance', data: Array(cd.prices.length).fill(sr.nearest_resistance),
+            borderColor: 'rgb(220, 53, 69)', borderDash: [6, 4], borderWidth: 1, pointRadius: 0, fill: false });
     }
-    
-    // Generate sample data for demonstration
-    const sampleData = Array.from({length: 30}, (_, i) => 50000 + Math.random() * 10000);
-    
+    if (sr.nearest_support) {
+        datasets.push({ label: 'Nearest support', data: Array(cd.prices.length).fill(sr.nearest_support),
+            borderColor: 'rgb(25, 135, 84)', borderDash: [6, 4], borderWidth: 1, pointRadius: 0, fill: false });
+    }
+
     patternChart = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels: Array.from({length: 30}, (_, i) => `Day ${i + 1}`),
-            datasets: [{
-                label: 'Price',
-                data: sampleData,
-                borderColor: 'rgb(255, 193, 7)',
-                backgroundColor: 'rgba(255, 193, 7, 0.1)',
-                borderWidth: 2,
-                fill: true
-            }]
-        },
+        data: { labels: labels, datasets: datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
+            animation: false,
+            plugins: { legend: { display: true } },
             scales: {
-                y: {
-                    beginAtZero: false
-                }
+                x: { ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+                y: { beginAtZero: false }
             }
         }
     });
@@ -516,21 +517,18 @@ function createPatternChart(data) {
 
 function createVolatilityChart(data) {
     const ctx = document.getElementById('volatilityChart').getContext('2d');
-    
-    if (volatilityChart) {
-        volatilityChart.destroy();
-    }
-    
-    // Generate sample volatility data
-    const volatilityData = Array.from({length: 14}, () => Math.random() * 10);
-    
+    if (volatilityChart) { volatilityChart.destroy(); }
+
+    const cd = data.chart_data;
+    if (!cd) return;
+
     volatilityChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: Array.from({length: 14}, (_, i) => `D-${14-i}`),
+            labels: cd.volatility_labels,
             datasets: [{
-                label: 'Daily Volatility %',
-                data: volatilityData,
+                label: 'Daily volatility % (std. dev. of hourly returns)',
+                data: cd.volatility_values,
                 backgroundColor: 'rgba(220, 53, 69, 0.5)',
                 borderColor: 'rgba(220, 53, 69, 1)',
                 borderWidth: 1
@@ -539,19 +537,10 @@ function createVolatilityChart(data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
+            animation: false,
+            plugins: { legend: { display: false } },
             scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Volatility %'
-                    }
-                }
+                y: { beginAtZero: true, title: { display: true, text: 'Volatility %' } }
             }
         }
     });
@@ -559,31 +548,28 @@ function createVolatilityChart(data) {
 
 function createTrendChart(data) {
     const ctx = document.getElementById('trendChart').getContext('2d');
-    
-    if (trendChart) {
-        trendChart.destroy();
-    }
-    
-    // Generate sample trend data
-    const trendData = Array.from({length: 20}, (_, i) => 100 + i * 2 + Math.random() * 5);
-    const trendLine = Array.from({length: 20}, (_, i) => 100 + i * 2);
-    
+    if (trendChart) { trendChart.destroy(); }
+
+    const cd = data.chart_data;
+    if (!cd) return;
+    const labels = cd.timestamps.map(ts => new Date(ts).toLocaleString([], {day: '2-digit', month: 'short'}));
+
     trendChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: Array.from({length: 20}, (_, i) => `P${i + 1}`),
+            labels: labels,
             datasets: [{
                 label: 'Price',
-                data: trendData,
+                data: cd.prices,
                 borderColor: 'rgba(13, 202, 240, 1)',
                 backgroundColor: 'rgba(13, 202, 240, 0.1)',
                 borderWidth: 2,
-                pointRadius: 2
+                pointRadius: 0
             }, {
-                label: 'Trend Line',
-                data: trendLine,
+                label: 'Trend line',
+                data: cd.trend_line,
                 borderColor: 'rgba(255, 193, 7, 1)',
-                borderWidth: 1,
+                borderWidth: 2,
                 borderDash: [5, 5],
                 pointRadius: 0,
                 fill: false
@@ -592,15 +578,11 @@ function createTrendChart(data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: true
-                }
-            },
+            animation: false,
+            plugins: { legend: { display: true } },
             scales: {
-                y: {
-                    beginAtZero: false
-                }
+                x: { ticks: { maxTicksLimit: 6, maxRotation: 0 } },
+                y: { beginAtZero: false }
             }
         }
     });

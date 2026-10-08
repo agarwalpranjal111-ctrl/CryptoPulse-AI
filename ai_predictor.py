@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
@@ -106,7 +106,7 @@ class AIPredictor:
                     future.append(float(path[-1]))
                 predictions[name] = future
 
-            last_ts = datetime.fromtimestamp(historical_data['prices'][-1][0] / 1000)
+            last_ts = datetime.fromtimestamp(historical_data['prices'][-1][0] / 1000, tz=timezone.utc)
             timestamps = [(last_ts + timedelta(hours=i + 1)).isoformat() for i in range(HORIZON)]
 
             return {

@@ -42,6 +42,7 @@ class PatternAnalyzer:
             # Generate overall pattern summary
             results['summary'] = self._generate_pattern_summary(results)
             results['timestamp'] = datetime.now().isoformat()
+            results['chart_data'] = self._build_chart_data(df)
             
             return results
             
@@ -52,14 +53,14 @@ class PatternAnalyzer:
     def _find_support_resistance(self, df):
         """Identify support and resistance levels"""
         prices = df['price'].values
-
+        
         # Find peaks (resistance) and valleys (support)
         peaks, _ = find_peaks(prices, distance=len(prices)//10)
         valleys, _ = find_peaks(-prices, distance=len(prices)//10)
-
+        
         resistance_levels = prices[peaks] if len(peaks) > 0 else []
         support_levels = prices[valleys] if len(valleys) > 0 else []
-
+        
         # Nearest resistance = lowest level ABOVE the current price,
         # nearest support = highest level BELOW the current price.
         current = float(prices[-1])
@@ -69,13 +70,28 @@ class PatternAnalyzer:
         nearest_support = max(below) if below else None
 
         return {
-            'resistance_levels': [float(level) for level in resistance_levels[-3:]],
-            'support_levels': [float(level) for level in support_levels[-3:]],
-            'current_price': current,
+            'resistance_levels': [float(level) for level in resistance_levels[-3:]],  # Last 3 resistance levels
+            'support_levels': [float(level) for level in support_levels[-3:]],  # Last 3 support levels
+            'current_price': float(prices[-1]),
             'nearest_resistance': nearest_resistance,
             'nearest_support': nearest_support
         }
-        
+    
+    def _build_chart_data(self, df):
+        """Real series for the charts on the Patterns page."""
+        prices = df['price'].values
+        x = np.arange(len(prices))
+        slope, intercept = np.polyfit(x, prices, 1)
+        returns = df.set_index('timestamp')['price'].pct_change().dropna()
+        daily_vol = (returns.groupby(returns.index.date).std() * 100).fillna(0).tail(14)
+        return {
+            'timestamps': df['timestamp'].dt.strftime('%Y-%m-%dT%H:%M:%SZ').tolist(),
+            'prices': [float(p) for p in prices],
+            'trend_line': [float(slope * i + intercept) for i in x],
+            'volatility_labels': [d.strftime('%d %b') for d in daily_vol.index],
+            'volatility_values': [float(v) for v in daily_vol.values],
+        }
+
     def _analyze_trend(self, df):
         """Analyze price trends using various methods"""
         prices = df['price'].values
